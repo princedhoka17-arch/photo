@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Find Me – Photo Sorter</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6b66;--ac:#4f46e5;--on:#fff;--bd:#e3e1da;--ok:#15803d;--err:#b91c1c}
+@media(prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--tx:#f1f1ee;--mut:#a0a09a;--ac:#8b85ff;--on:#14141a;--bd:#34343a;--ok:#4ade80;--err:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:640px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:28px}
+h1{font-size:28px;margin:0 0 8px}h2{font-size:22px;margin:0 0 8px}
+p{color:var(--mut);margin:0 0 16px}
+.emoji{font-size:48px;margin-bottom:8px}
+button,.btn{background:var(--ac);color:var(--on);border:0;border-radius:10px;padding:12px 20px;font:600 16px inherit;font-family:inherit;cursor:pointer;display:inline-block;margin:4px 6px 4px 0}
+button.alt,.btn.alt{background:transparent;color:var(--ac);border:1.5px solid var(--ac)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=text]{width:100%;padding:12px 14px;font-size:18px;border:1.5px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);margin-bottom:16px}
+input[type=file]{display:none}
+.drop{border:2px dashed var(--bd);border-radius:12px;padding:28px;text-align:center;margin-bottom:12px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin:12px 0}
+.thumbs img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden;margin:12px 0}
+.bar i{display:block;height:100%;width:0;background:var(--ac);transition:width .2s}
+.msg{font-size:15px;margin:8px 0}.ok{color:var(--ok)}.err{color:var(--err)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+.stat{border:1px solid var(--bd);border-radius:12px;padding:12px;text-align:center}
+.stat b{display:block;font-size:28px}.stat span{font-size:13px;color:var(--mut)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tabs button{padding:8px 14px;font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--bd);border-radius:12px;padding:10px 14px;margin-bottom:8px}
+.row b{font-size:15px}.row button{padding:8px 12px;font-size:14px;margin:2px 4px 2px 0}
+.privacy{font-size:13px;color:var(--mut);text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<main>
+
+<!-- 0: Intro -->
+<section class="card step" id="s0">
+  <div class="emoji">📸</div>
+  <h1>Find Me</h1>
+  <p>Got hundreds of photos and no time to dig through them? Upload a selfie and your photos, and this app finds every picture you’re in and sorts them for you:</p>
+  <p>👥 <b>Group photos</b> (you + 2 or more people)<br>🧑‍🤝‍🧑 <b>With one person</b> (you + one other)<br>🙂 <b>Solo</b> (just you)</p>
+  <button onclick="go(1)">Get started</button>
+  <div class="privacy">🔒 100% private. Your photos are processed on your own device and are never uploaded anywhere.</div>
+</section>
+
+<!-- 1: Name -->
+<section class="card step" id="s1" hidden>
+  <h2>First, what’s your first name?</h2>
+  <p>Just so we can personalise things. We save only your first name and the photo counts to keep usage stats. Your photos and face data are never stored.</p>
+  <input type="text" id="nameIn" placeholder="Your first name" maxlength="40" autocomplete="given-name">
+  <button id="nameBtn" disabled onclick="setName()">Continue</button>
+</section>
+
+<!-- 2: Selfie -->
+<section class="card step" id="s2" hidden>
+  <h2 id="hiName"></h2>
+  <p>Upload a clear, front-facing selfie so we know what you look like. Adding 2–3 selfies (different angles) gives better results.</p>
+  <div class="drop">
+    <label class="btn">📁 Upload selfie<input type="file" accept="image/*" multiple onchange="addSelfies(this.files)"></label>
+    <label class="btn alt">🤳 Take selfie<input type="file" accept="image/*" capture="user" onchange="addSelfies(this.files)"></label>
+  </div>
+  <div class="thumbs" id="selfieThumbs"></div>
+  <div class="msg" id="selfieMsg"></div>
+  <button class="alt" onclick="go(1)">Back</button>
+  <button id="selfieBtn" disabled onclick="go(3)">Continue</button>
+</section>
+
+<!-- 3: Upload photos -->
+<section class="card step" id="s3" hidden>
+  <h2>Now add all your photos</h2>
+  <p>Select as many as you like (JPG, PNG, WEBP). Tip: pick a few hundred at a time for the best speed.</p>
+  <div class="drop">
+    <label class="btn">🖼️ Choose photos<input type="file" accept="image/*" multiple onchange="setPhotos(this.files)"></label>
+  </div>
+  <div class="msg" id="photoMsg"></div>
+  <button class="alt" onclick="go(2)">Back</button>
+  <button id="startBtn" disabled onclick="runSort()">Find my photos</button>
+</section>
+
+<!-- 4: Processing -->
+<section class="card step" id="s4" hidden>
+  <h2 id="procTitle">Looking through your photos…</h2>
+  <p>Keep this tab open. It may take a little while for large batches.</p>
+  <div class="bar"><i id="procBar"></i></div>
+  <div class="msg" id="procMsg"></div>
+</section>
+
+<!-- 5: Results -->
+<section class="card step" id="s5" hidden>
+  <h2 id="doneTitle"></h2>
+  <p id="doneSub"></p>
+  <div class="stats">
+    <div class="stat"><b id="cGroup">0</b><span>Group</span></div>
+    <div class="stat"><b id="cPair">0</b><span>With one person</span></div>
+    <div class="stat"><b id="cSolo">0</b><span>Solo</span></div>
+  </div>
+  <div class="row"><b>📦 All three folders</b><span>
+    <button onclick="dl(['group','pair','solo'])">⬇️ Download ZIP</button>
+    <button class="alt" onclick="copyTo(['group','pair','solo'])">📁 Copy to folder</button></span></div>
+  <div class="row"><b>👥 1_Group</b><span>
+    <button onclick="dl(['group'])">⬇️ Download</button>
+    <button class="alt" onclick="copyTo(['group'])">📁 Copy</button></span></div>
+  <div class="row"><b>🧑‍🤝‍🧑 2_With_One_Person</b><span>
+    <button onclick="dl(['pair'])">⬇️ Download</button>
+    <button class="alt" onclick="copyTo(['pair'])">📁 Copy</button></span></div>
+  <div class="row"><b>🙂 3_Solo</b><span>
+    <button onclick="dl(['solo'])">⬇️ Download</button>
+    <button class="alt" onclick="copyTo(['solo'])">📁 Copy</button></span></div>
+  <div class="bar" id="zipBarWrap" hidden><i id="zipBar"></i></div>
+  <div class="msg" id="zipMsg"></div>
+  <h2 style="margin-top:20px;font-size:18px">Preview</h2>
+  <div class="tabs">
+    <button class="alt" onclick="show('group')">Group</button>
+    <button class="alt" onclick="show('pair')">With one person</button>
+    <button class="alt" onclick="show('solo')">Solo</button>
+  </div>
+  <div class="thumbs" id="prev"></div>
+  <button class="alt" onclick="location.reload()">Start over</button>
+</section>
+
+<div class="privacy" id="modelStatus">Loading face recognition…</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="config.js"></script>
+<script>
+const MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+const TOLERANCE = 0.5;     // lower = stricter matching
+const MIN_OTHER = 0.4;     // other faces smaller than 40% of your face height are ignored (background strangers)
+const FOLDERS = { group: '1_Group', pair: '2_With_One_Person', solo: '3_Solo' };
+const $ = id => document.getElementById(id);
+const S = { name: '', ref: [], files: [], res: { group: [], pair: [], solo: [] } };
+
+function go(n) {
+  document.querySelectorAll('.step').forEach(s => s.hidden = s.id !== 's' + n);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- models ---------- */
+let modelsP = null;
+function loadModels() {
+  if (!modelsP) modelsP = (async () => {
+    await faceapi.nets.ssdMobilenetv1.loadFromUri(MODELS);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS);
+  })();
+  return modelsP;
+}
+window.addEventListener('load', () => {
+  if (typeof faceapi === 'undefined') { $('modelStatus').textContent = 'Could not load the face library. Check your internet connection and reload.'; return; }
+  loadModels().then(() => $('modelStatus').textContent = '✓ Face recognition ready')
+    .catch(() => $('modelStatus').textContent = 'Could not load face models. Check your internet connection and reload.');
+});
+
+/* ---------- image helpers ---------- */
+async function toCanvas(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close();
+  return c;
+}
+async function detect(file) {
+  await loadModels();
+  const c = await toCanvas(file);
+  return faceapi.detectAllFaces(c, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+    .withFaceLandmarks().withFaceDescriptors();
+}
+
+/* ---------- step 1: name ---------- */
+$('nameIn').addEventListener('input', e => $('nameBtn').disabled = !e.target.value.trim());
+$('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter' && !$('nameBtn').disabled) setName(); });
+function setName() {
+  S.name = $('nameIn').value.trim();
+  $('hiName').textContent = 'Nice to meet you, ' + S.name + '! Now a selfie.';
+  go(2);
+}
+
+/* ---------- step 2: selfie ---------- */
+async function addSelfies(files) {
+  $('selfieMsg').className = 'msg'; $('selfieMsg').textContent = 'Checking your selfie…';
+  for (const f of files) {
+    try {
+      const faces = await detect(f);
+      if (!faces.length) { $('selfieMsg').className = 'msg err'; $('selfieMsg').textContent = 'No face found in one of the photos. Try a clearer, well-lit, front-facing one.'; continue; }
+      faces.sort((a, b) => b.detection.box.height - a.detection.box.height);
+      S.ref.push(faces[0].descriptor);
+      const img = document.createElement('img'); img.src = URL.createObjectURL(f);
+      $('selfieThumbs').appendChild(img);
+      $('selfieMsg').className = 'msg ok';
+      $('selfieMsg').textContent = '✓ Got it (' + S.ref.length + ' selfie' + (S.ref.length > 1 ? 's' : '') + ' ready). If several faces were visible, the biggest one was used.';
+    } catch (e) { $('selfieMsg').className = 'msg err'; $('selfieMsg').textContent = 'Could not read that image. Try a JPG or PNG.'; }
+  }
+  $('selfieBtn').disabled = !S.ref.length;
+}
+
+/* ---------- step 3: photos ---------- */
+function setPhotos(files) {
+  S.files = [...files].filter(f => f.type.startsWith('image/'));
+  $('photoMsg').textContent = S.files.length + ' photo' + (S.files.length === 1 ? '' : 's') + ' selected.';
+  $('startBtn').disabled = !S.files.length;
+}
+
+/* ---------- step 4: sorting ---------- */
+function classify(faces) {
+  let idx = -1, best = 1;
+  faces.forEach((f, i) => {
+    const d = Math.min(...S.ref.map(r => faceapi.euclideanDistance(r, f.descriptor)));
+    if (d < best) { best = d; idx = i; }
+  });
+  if (idx < 0 || best > TOLERANCE) return null;
+  const myH = faces[idx].detection.box.height;
+  const others = faces.filter((f, i) => i !== idx && f.detection.box.height >= myH * MIN_OTHER).length;
+  return others === 0 ? 'solo' : others === 1 ? 'pair' : 'group';
+}
+async function runSort() {
+  go(4);
+  S.res = { group: [], pair: [], solo: [] };
+  let none = 0, fail = 0;
+  for (let i = 0; i < S.files.length; i++) {
+    const f = S.files[i];
+    try {
+      const r = classify(await detect(f));
+      if (r) S.res[r].push(f); else none++;
+    } catch (e) { fail++; }
+    $('procBar').style.width = ((i + 1) / S.files.length * 100) + '%';
+    $('procMsg').textContent = (i + 1) + ' of ' + S.files.length + ' checked · found you in ' +
+      (S.res.group.length + S.res.pair.length + S.res.solo.length);
+    await new Promise(r => setTimeout(r, 0));
+  }
+  const total = S.res.group.length + S.res.pair.length + S.res.solo.length;
+  $('doneTitle').textContent = 'All done, ' + S.name + '! 🎉';
+  $('doneSub').textContent = 'You’re in ' + total + ' of ' + S.files.length + ' photos.' +
+    (fail ? ' (' + fail + ' file' + (fail > 1 ? 's' : '') + ' couldn’t be read, for example HEIC.)' : '');
+  $('cGroup').textContent = S.res.group.length;
+  $('cPair').textContent = S.res.pair.length;
+  $('cSolo').textContent = S.res.solo.length;
+  logSession(total);
+  show('solo');
+  go(5);
+}
+
+/* ---------- step 5: results ---------- */
+function show(k) {
+  $('prev').innerHTML = '';
+  S.res[k].slice(0, 60).forEach(f => {
+    const img = document.createElement('img'); img.loading = 'lazy'; img.src = URL.createObjectURL(f);
+    $('prev').appendChild(img);
+  });
+}
+/* ---------- copy to a folder on this device (Chrome/Edge desktop) ---------- */
+async function copyTo(keys) {
+  const m = $('zipMsg'); m.className = 'msg';
+  if (!window.showDirectoryPicker) {
+    m.className = 'msg err';
+    m.textContent = 'Your browser can’t copy straight into a folder. Use Chrome or Edge on a computer, or use Download ZIP.';
+    return;
+  }
+  let root;
+  try { root = await showDirectoryPicker({ mode: 'readwrite' }); } catch (e) { return; } // cancelled
+  const total = keys.reduce((n, k) => n + S.res[k].length, 0);
+  if (!total) { m.className = 'msg err'; m.textContent = 'Nothing to copy in that selection.'; return; }
+  $('zipBarWrap').hidden = false; let done = 0;
+  try {
+    for (const k of keys) {
+      const dir = await root.getDirectoryHandle(FOLDERS[k], { create: true }); const used = new Set();
+      for (let i = 0; i < S.res[k].length; i++) {
+        const f = S.res[k][i]; let n = f.name; if (used.has(n)) n = i + '_' + n; used.add(n);
+        const w = await (await dir.getFileHandle(n, { create: true })).createWritable();
+        await w.write(f); await w.close();
+        $('zipBar').style.width = (++done / total * 100) + '%';
+        m.textContent = 'Copying… ' + done + ' of ' + total;
+      }
+    }
+    m.className = 'msg ok'; m.textContent = '✓ Copied ' + total + ' photos into the folder you chose.';
+  } catch (e) { m.className = 'msg err'; m.textContent = 'Copy failed: ' + e.message; }
+}
+
+/* ---------- save anonymous usage stats to Supabase (no photos, no face data) ---------- */
+async function logSession(matched) {
+  const c = window.APP_CONFIG;
+  if (!c || !c.SUPABASE_URL || c.SUPABASE_URL.includes('YOUR_')) return;
+  try {
+    await fetch(c.SUPABASE_URL + '/rest/v1/sessions', {
+      method: 'POST',
+      headers: { apikey: c.SUPABASE_ANON_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        first_name: S.name.slice(0, 40), total_photos: S.files.length, matched,
+        group_count: S.res.group.length, pair_count: S.res.pair.length, solo_count: S.res.solo.length
+      })
+    });
+  } catch (e) { /* never block the user if logging fails */ }
+}
+
+async function dl(keys) {
+  const count = keys.reduce((n, k) => n + S.res[k].length, 0);
+  if (!count) { $('zipMsg').className = 'msg err'; $('zipMsg').textContent = 'Nothing to download in that selection.'; return; }
+  $('zipMsg').className = 'msg'; $('zipMsg').textContent = 'Preparing your ZIP…';
+  $('zipBarWrap').hidden = false;
+  const z = new JSZip();
+  keys.forEach(k => {
+    const folder = z.folder(FOLDERS[k]); const used = new Set();
+    S.res[k].forEach((f, i) => { let n = f.name; if (used.has(n)) n = i + '_' + n; used.add(n); folder.file(n, f); });
+  });
+  const blob = await z.generateAsync({ type: 'blob', compression: 'STORE' }, m => $('zipBar').style.width = m.percent + '%');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = S.name.replace(/[^\w-]+/g, '_') + '_photos.zip';
+  a.click();
+  $('zipMsg').className = 'msg ok'; $('zipMsg').textContent = '✓ Downloaded. Unzip it to see your sorted folders.';
+}
+</script>
+</body>
+</html>
